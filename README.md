@@ -196,7 +196,98 @@ FROM (SELECT e.user, COUNT(*) as num
 
 
 
+## Additional Ideas
 
+### Place name who takes bitcoin payment
+```sql
+SELECT COUNT(*) as count 
+FROM (SELECT * FROM nodes_tags UNION ALL SELECT * FROM ways_tags) 
+WHERE key = 'bitcoin' 
+GROUP BY key;
+```
+18
 
+```sql
+SELECT tags.id, tags.key, tags.value 
+FROM ways_tags as tags 
+WHERE tags.id IN (SELECT id FROM (SELECT * FROM ways_tags WHERE key = 'bitcoin') as T) 
+    and (tags.key = 'name');
+```
+```
+id|key|value
+95606130|name|Bitcountant
+203436185|name|Liberty Extraction & Drying
+```
 
+```sql
+SELECT tags.id, tags.key, tags.value 
+FROM nodes_tags as tags 
+WHERE tags.id IN (SELECT id FROM (SELECT * FROM nodes_tags WHERE key = 'bitcoin') as T) 
+    and (tags.key = 'name');
+```
+```sql
+id|key|value
+2362164911|name|Planet Linux Caffe
+2379324455|name|Audio Props
+2517338154|name|Vanity Miami - Cosmetic Surgery
+2525585171|name|Ecig Shop Miami
+2543973344|name|Barnard Law Offices, L.P.
+2543990516|name|OMNI Expert Consulting, Inc.
+2544305329|name|Wellington Florist
+2552834515|name|Xtreme Care Body Shop
+2554422896|name|Vanity Cosmetic Surgery
+2554429722|name|Vanity Cosmetic Surgery
+2563336834|name|Ortega Cigars
+2563943753|name|Verbena Products Online Beauty Store
+2570898921|name|Therapy Alliance Inc
+2573516704|name|Ballard Computer Solutions
+2576132724|name|League Against Aids Inc
+2578603017|name|Daddy Brews
+```
 
+### Top 10 appearing amenities
+
+```sql
+SELECT value, COUNT(*) as num
+FROM nodes_tags
+WHERE key='amenity'
+GROUP BY value
+ORDER BY num DESC
+LIMIT 10;
+```
+```
+school|1643
+place_of_worship|556
+kindergarten|528
+fire_station|316
+police|197
+library|145
+hospital|130
+restaurant|129
+post_office|82
+parking|77
+```
+
+### Top 10 cuisines
+```sql
+SELECT nodes_tags.value, COUNT(*) as num
+FROM nodes_tags 
+    JOIN (SELECT DISTINCT(id) FROM nodes_tags WHERE value='restaurant') i
+    ON nodes_tags.id=i.id
+WHERE nodes_tags.key='cuisine'
+GROUP BY nodes_tags.value
+ORDER BY num DESC
+LIMIT 10;
+```
+```
+american|9
+pizza|6
+italian|5
+burger|4
+sandwich|4
+seafood|4
+chinese|3
+Cuban|1
+Irish,_etc.|1
+asian|1
+```
