@@ -6,12 +6,14 @@ Miami, FL, United States
 - [https://www.openstreetmap.org/relation/1216769](https://www.openstreetmap.org/relation/1216769)
 - [https://archive.is/o/ycQ4e/osm-extracted-metros.s3.amazonaws.com/miami.osm.bz2](https://archive.is/o/ycQ4e/osm-extracted-metros.s3.amazonaws.com/miami.osm.bz2)
 
-This map is the place which I have been living for 4 years. I would like an opportunity to know more details of this city and to contribute to its improvement on the Map.
+This map is the place which I have been studing, working and living for 4 years. I would like an opportunity to know more details of this city and to contribute to its improvement on the Map.
 
 
 ## Problems Encounteren in the Map
 
-.........
+After initially downloading the Map Data of Miami area and running it against data.py file, it shows main problems with the data, which I will discuss in the following order:
+- Overabbreviated street names ("NW 107th Ter")
+- Inconsistent postal codes ("FL 33431-4403")
 
 ### To Make Street Names Uniform
 
@@ -49,7 +51,7 @@ ORDER BY count DESC;
 ```
 Here are the top ten results, beginning with the highest count:
 ```sql
-value,count
+value|count
 33319|21
 33139|20
 33313|14
@@ -63,9 +65,9 @@ value,count
 ```
 Then, regarding the table ways_tags, the zip code data are all looks make sence. All zip codes are 5 digit, and start with 330 to 334 which truly belongs to Miami city. Some zip codes are showing like below. The ways could be in multiple zip areas. In order to keep data complete, this part of data will not be edited.
 ```sql
-value,count
-"33487; 33483",4
-33004:33312,2
+value|count
+"33487; 33483"|4
+33004:33312|2
 ```
 I queried zip code data and get info like below
 ```sql
@@ -77,17 +79,17 @@ ORDER BY count DESC;
 ```
 Here are the top ten results, beginning with the highest count:
 ```sql
-value,count
-33157,2195
-33176,1942
-33064,1869
-33186,1799
-33175,1781
-33311,1665
-33312,1503
-33024,1499
-33029,1429
-33063,1425
+value|count
+33157|2195
+33176|1942
+33064|1869
+33186|1799
+33175|1781
+33311|1665
+33312|1503
+33024|1499
+33029|1429
+33063|1425
 ```
 
 ```sql
@@ -197,8 +199,17 @@ FROM (SELECT e.user, COUNT(*) as num
 
 
 ## Additional Ideas
+### Contributor statistics
+Here are some user percentage statistics:
+- Top user contribution percentage ("grouper") 23.18%
+- Combined top 3 users' contribution ("grouper", "woodpeck_fixbot" and "Latze") 55.92%
+- Combined Top 10 users contribution 82.65%
+- Combined number of users making up only 0.01% of posts 115 (19.93% of all users)
 
-### Place name who takes bitcoin payment
+Thinking about these user percentages, the top users contribution is still much highter than others, but it looks reasonable. Data might be contributed by specific agency group or automated edited. More than 80% of users submit more than 1 edit. 
+
+## Additional Data Exploration
+### Number of Places where take bitcoin payment
 ```sql
 SELECT COUNT(*) as count 
 FROM (SELECT * FROM nodes_tags UNION ALL SELECT * FROM ways_tags) 
@@ -206,19 +217,18 @@ WHERE key = 'bitcoin'
 GROUP BY key;
 ```
 18
-
+### Name of Places where take bitcoin payment
 ```sql
 SELECT tags.id, tags.key, tags.value 
 FROM ways_tags as tags 
 WHERE tags.id IN (SELECT id FROM (SELECT * FROM ways_tags WHERE key = 'bitcoin') as T) 
     and (tags.key = 'name');
 ```
-```
+```sql
 id|key|value
 95606130|name|Bitcountant
 203436185|name|Liberty Extraction & Drying
 ```
-
 ```sql
 SELECT tags.id, tags.key, tags.value 
 FROM nodes_tags as tags 
@@ -246,7 +256,6 @@ id|key|value
 ```
 
 ### Top 10 appearing amenities
-
 ```sql
 SELECT value, COUNT(*) as num
 FROM nodes_tags
@@ -255,7 +264,7 @@ GROUP BY value
 ORDER BY num DESC
 LIMIT 10;
 ```
-```
+```sql
 school|1643
 place_of_worship|556
 kindergarten|528
@@ -279,7 +288,7 @@ GROUP BY nodes_tags.value
 ORDER BY num DESC
 LIMIT 10;
 ```
-```
+```sql
 american|9
 pizza|6
 italian|5
@@ -291,3 +300,4 @@ Cuban|1
 Irish,_etc.|1
 asian|1
 ```
+
