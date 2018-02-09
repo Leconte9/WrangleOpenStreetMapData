@@ -118,7 +118,9 @@ Let's use UPDATE to combine the info.
 SELECT * FROM (SELECT * FROM nodes_tags UNION ALL SELECT * FROM ways_tags) tags 
 WHERE tags.key LIKE '%county' and tags.value = 'Martin, FL:Palm Beach, FL';
 ```
+```sql
 11202755|county|Martin, FL:Palm Beach, FL|tiger
+```
 
 ```sql
 UPDATE ways_tags SET value = 'Palm Beach, FL' WHERE key LIKE '%county' and value = 'Martin, FL:Palm Beach, F';
