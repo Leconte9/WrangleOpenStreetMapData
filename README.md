@@ -9,10 +9,10 @@ Miami, FL, United States
 This map is the place which I have been studing, working and living for 4 years. I would like an opportunity to know more details of this city and to contribute to its improvement on the Map.
 
 
-## Problems Encounteren in the Map
+## Problems Encountered in the Map
 
 After initially downloading the Map Data of Miami area and running it against data.py file, it shows main problems with the data, which I will discuss in the following order:
-- Overabbreviated street names ("NW 107th Ter")
+- Over abbreviated street names ("NW 107th Ter")
 - Inconsistent postal codes ("FL 33431-4403")
 
 ### To Make Street Names Uniform
