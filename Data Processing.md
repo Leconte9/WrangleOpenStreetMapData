@@ -192,7 +192,7 @@ for st_type, ways in st_types.items():
         better_name = update_name(name, mapping)
         print(name, "=>", better_name)
 ```
-The changing shows as following:
+The changing shows as following examples:
 ```
 Seminole Blvd. => Seminole Boulevard
 Cordova Rd => Cordova Road
