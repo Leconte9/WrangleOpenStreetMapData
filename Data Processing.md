@@ -193,7 +193,7 @@ for st_type, ways in st_types.items():
         print(name, "=>", better_name)
 ```
 The changing shows as following:
-```python
+```
 Seminole Blvd. => Seminole Boulevard
 Cordova Rd => Cordova Road
 NW 58th St. => NW 58th Street
