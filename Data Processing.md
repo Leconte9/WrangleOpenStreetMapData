@@ -207,6 +207,16 @@ SW 15th Ct => SW 15th Court
 
 ## Preparing for database miami.db
 ```python
+import csv
+import codecs
+import pprint
+import re
+import xml.etree.cElementTree as ET
+from collections import defaultdict
+import cerberus
+
+import schema
+
 OSM_PATH = "miami.osm"
 
 NODES_PATH = "nodes.csv"
@@ -220,6 +230,53 @@ PROBLEMCHARS = re.compile(r'[=\+/&<>;\'"\?%#$@\,\. \t\r\n]')
 
 SCHEMA = schema.schema
 
+street_type_re = re.compile(r'\b\S+\.?$', re.IGNORECASE)
+
+expected = ["Street", "Avenue", "Boulevard", "Drive", "Court", "Place", "Square", "Lane", "Road", 
+            "Trail", "Parkway", "Commons"]
+
+mapping = { "ST": "Street",
+            "St": "Street",
+            "Sr": "Street",
+            "St.": "Street",
+            "st": "Street",
+            "street": "Street",
+            "ave": "Avenue",
+            "avenue": "Avenue",
+            "Ave.": "Avenue",
+            "AVE": "Avenue",
+            "Ave": "Avenue",
+            "BLVD": "Boulevard",
+            "Blvd": "Boulevard",
+            "Blvd.": "Boulevard",
+            "Rd.": "Road",
+            "Broadwalk": "Boardwalk",
+            "Cir": "Circle",
+            "Cres": "Crescent",
+            "Ct": "Court",
+            "ct": "Court",
+            "Cv": "Cove",
+            "DRIVE": "Drive",
+            "Dr": "Drive",
+            "Dr.": "Drive",
+            "HWY": "Highway",
+            "Hwy": "Highway",
+            "Ln": "Lane",
+            "Mnr": "Manor",
+            "PL": "Place",
+            "Pl": "Place",
+            "Pkwy": "Parkway",
+            "Pt": "Point",
+            "RD": "Road",
+            "Rd": "Road",
+            "Rd.": "Road",
+            "rd": "Road",
+            "road": "Road",
+            "Ter": "Terrace",
+            "Trce": "Trace",
+            "Trl": "Trail          
+          }
+
 # Make sure the fields order in the csvs matches the column order in the sql table schema
 NODE_FIELDS = ['id', 'lat', 'lon', 'user', 'uid', 'version', 'changeset', 'timestamp']
 NODE_TAGS_FIELDS = ['id', 'key', 'value', 'type']
@@ -227,16 +284,32 @@ WAY_FIELDS = ['id', 'user', 'uid', 'version', 'changeset', 'timestamp']
 WAY_TAGS_FIELDS = ['id', 'key', 'value', 'type']
 WAY_NODES_FIELDS = ['id', 'node_id', 'position']
 
+def audit_street_type(street_types, street_name):
+    m = street_type_re.search(street_name)
+    if m:
+        street_type = m.group()
+        if street_type not in expected:
+            street_types[street_type].add(street_name)
+
+def update_name(name, mapping):    
+    st_type = street_type_re.search(name).group()
+    if st_type in mapping.keys():
+        update_type = mapping[st_type]
+        name = name.replace(st_type, update_type)
+    return name
+
 def shape_element(element, node_attr_fields=NODE_FIELDS, way_attr_fields=WAY_FIELDS,
                   problem_chars=PROBLEMCHARS, default_tag_type='regular'):
     """Clean and shape node or way XML element to Python dict"""
+
     node_attribs = {}
     way_attribs = {}
     way_nodes = []
     tags = []  # Handle secondary tags the same way for both node and way elements
     
     LOWER_COLON_self = re.compile(r'^([a-z]|_)+')
-
+    street_types = defaultdict(set)
+    
     if element.tag == 'node':
         for nodeFields in node_attr_fields:
             if nodeFields == 'id' or nodeFields == 'uid' or nodeFields == 'changeset':
@@ -246,9 +319,16 @@ def shape_element(element, node_attr_fields=NODE_FIELDS, way_attr_fields=WAY_FIE
             elif nodeFields in ['user', 'version', 'timestamp']:
                 node_attribs[nodeFields] = fix_b(str(element.attrib[nodeFields]))
         for tag in element.iter('tag'):
+        # Improving Street Names
+            if is_street_name(tag):
+                audit_street_type(street_types, tag.attrib['v'])
+            for st_type, ws in street_types.items():
+                for name in ws:
+                    name = update_name(name, mapping)
+
             tag_attribs = {}
             tag_k = tag.attrib['k']
-
+            
             if ":" not in tag_k:
                 tag_type = default_tag_type
                 type_key = tag_k
@@ -262,9 +342,9 @@ def shape_element(element, node_attr_fields=NODE_FIELDS, way_attr_fields=WAY_FIE
             tag_attribs[NODE_TAGS_FIELDS[2]] = fix_b(str(tag.attrib['v']))
             tag_attribs[NODE_TAGS_FIELDS[3]] = fix_b(str(tag_type))
             
-            tags.append(tag_attribs)       
-        return {'node': node_attribs, 'node_tags': tags}
+            tags.append(tag_attribs)
         
+        return {'node': node_attribs, 'node_tags': tags}
     elif element.tag == 'way':
         for wayFields in way_attr_fields:
             if wayFields in ['id', 'uid', 'changeset']:
@@ -273,28 +353,40 @@ def shape_element(element, node_attr_fields=NODE_FIELDS, way_attr_fields=WAY_FIE
                 way_attribs[wayFields] = fix_b(str(element.attrib[wayFields]))
             
         for tag in element.iter('tag'):
+        # Improving Street Names
+            if is_street_name(tag):
+                audit_street_type(street_types, tag.attrib['v'])
+            for st_type, ws in street_types.items():
+                for name in ws:
+                    name = update_name(name, mapping)
+            
             tag_attribs = {}
             tag_k = tag.attrib['k']
+            
             if ":" not in tag_k:
                 tag_type = default_tag_type
                 type_key = tag_k
             else:
                 tag_type_colon = re.split(":", tag_k, 1)
                 tag_type = tag_type_colon[0]
-                type_key = tag_type_colon[1]           
+                type_key = tag_type_colon[1]
+            
             tag_attribs[WAY_TAGS_FIELDS[0]] = int(element.attrib['id'])
             tag_attribs[WAY_TAGS_FIELDS[1]] = fix_b(str(type_key))
             tag_attribs[WAY_TAGS_FIELDS[2]] = fix_b(str(tag.attrib['v']))
-            tag_attribs[WAY_TAGS_FIELDS[3]] = fix_b(str(tag_type))            
-            tags.append(tag_attribs)       
+            tag_attribs[WAY_TAGS_FIELDS[3]] = fix_b(str(tag_type))
+            print(tag_attribs[WAY_TAGS_FIELDS[3]])
+            
+            tags.append(tag_attribs)
+        
         position = 0
         for wayNodes in element.iter('nd'):
             nd_attribs = {}
             nd_attribs[WAY_NODES_FIELDS[0]] = int(element.attrib['id'])
             nd_attribs[WAY_NODES_FIELDS[1]] = int(wayNodes.attrib['ref'])
             nd_attribs[WAY_NODES_FIELDS[2]] = int(position)
-            position += 1            
-            way_nodes.append(nd_attribs)        
+            position += 1           
+            way_nodes.append(nd_attribs)       
         return {'way': way_attribs, 'way_nodes': way_nodes, 'way_tags': tags}
 
 def fix_b(string):
@@ -303,7 +395,7 @@ def fix_b(string):
         return newStr
     else:
         return string
-        
+    
 # ================================================== #
 #               Helper Functions                     #
 # ================================================== #
@@ -328,7 +420,6 @@ def validate_element(element, validator, schema=SCHEMA):
 
 class UnicodeDictWriter(csv.DictWriter, object):
     """Extend csv.DictWriter to handle Unicode input"""
-
     def writerows(self, rows):
         for row in rows:
             self.writerow(row)
